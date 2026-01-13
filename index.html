@@ -1,322 +1,308 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Camera, CheckCircle2, Circle, Plus, Trash2, Download, X, Truck, Calendar, Clock, AlertCircle, Image as ImageIcon, FileText } from 'lucide-react';
-
-// Cargamos html2canvas desde CDN para la exportación a imagen
-const HTML2CANVAS_URL = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-
-const App = () => {
-  const [items, setItems] = useState([
-    { id: 1, label: 'Luces del camión', checked: false, photo: null },
-    { id: 2, label: 'Llaves de candado', checked: false, photo: null },
-    { id: 3, label: 'Luz de carrocería', checked: false, photo: null },
-    { id: 4, label: 'Candado 1', checked: false, photo: null },
-    { id: 5, label: 'Candado 2', checked: false, photo: null },
-  ]);
-  
-  const [newItemName, setNewItemName] = useState('');
-  const [isExporting, setIsExporting] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [activePhotoId, setActivePhotoId] = useState(null);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
-  
-  const fileInputRef = useRef(null);
-  const cameraInputRef = useRef(null);
-  const reportRef = useRef(null);
-
-  // Cargar el script de html2canvas dinámicamente
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = HTML2CANVAS_URL;
-    script.async = true;
-    script.onload = () => setScriptLoaded(true);
-    document.body.appendChild(script);
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Checklist Camión PLBD87</title>
     
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    return () => {
-      clearInterval(timer);
-      document.body.removeChild(script);
-    };
-  }, []);
+    <!-- Tailwind CSS para el diseño -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2canvas para convertir el reporte en imagen -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-  const formattedDate = currentTime.toLocaleDateString('es-CL', { 
-    day: '2-digit', month: '2-digit', year: 'numeric' 
-  });
-  const formattedTime = currentTime.toLocaleTimeString('es-CL', { 
-    hour: '2-digit', minute: '2-digit' 
-  });
-
-  // --- Lógica de Manejo de Fotos ---
-  const handleTriggerGallery = (id) => {
-    setActivePhotoId(id);
-    if (fileInputRef.current) fileInputRef.current.click();
-  };
-
-  const handleTriggerCamera = (id) => {
-    setActivePhotoId(id);
-    if (cameraInputRef.current) cameraInputRef.current.click();
-  };
-
-  const handleCapture = (e) => {
-    const file = e.target.files[0];
-    if (file && activePhotoId !== null) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setItems(items.map(item => 
-          item.id === activePhotoId ? { ...item, photo: reader.result, checked: true } : item
-        ));
-      };
-      reader.readAsDataURL(file);
-    }
-    e.target.value = '';
-  };
-
-  const removePhoto = (id) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, photo: null } : item
-    ));
-  };
-
-  const toggleCheck = (id) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, checked: !item.checked } : item
-    ));
-  };
-
-  const addItem = () => {
-    if (newItemName.trim()) {
-      setItems([...items, { id: Date.now(), label: newItemName, checked: false, photo: null }]);
-      setNewItemName('');
-    }
-  };
-
-  const removeItem = (id) => {
-    setItems(items.filter(item => item.id !== id));
-  };
-
-  // --- Exportar como Imagen Directa ---
-  const exportAsImage = async () => {
-    if (!scriptLoaded) {
-      alert("Cargando motor de imagen, por favor espera un segundo...");
-      return;
-    }
-    
-    setIsExporting(true);
-    
-    // Esperar a que el DOM se renderice para la exportación
-    setTimeout(async () => {
-      const element = reportRef.current;
-      if (element) {
-        try {
-          const canvas = await window.html2canvas(element, {
-            useCORS: true,
-            scale: 2, // Mejor calidad
-            backgroundColor: "#ffffff",
-            logging: false
-          });
-          
-          const image = canvas.toDataURL("image/png");
-          const link = document.createElement("a");
-          link.href = image;
-          link.download = `Entrega_PLBD87_${formattedDate.replace(/\//g, '-')}.png`;
-          link.click();
-        } catch (error) {
-          console.error("Error exportando imagen:", error);
-          alert("Hubo un error al generar la imagen.");
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
         }
-      }
-      setIsExporting(false);
-    }, 500);
-  };
+        .item-card {
+            transition: transform 0.1s ease;
+        }
+        .item-card:active {
+            transform: scale(0.98);
+        }
+        /* Ocultar el reporte de la vista normal */
+        #hidden-report {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 800px;
+            background: white;
+        }
+    </style>
+</head>
+<body class="text-slate-900">
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-10">
-      {/* Inputs ocultos */}
-      <input type="file" ref={fileInputRef} onChange={handleCapture} accept="image/*" className="hidden" />
-      <input type="file" ref={cameraInputRef} onChange={handleCapture} accept="image/*" capture="environment" className="hidden" />
-
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-30 px-6 py-4 shadow-sm">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2.5 rounded-2xl shadow-lg">
-              <Truck size={24} className="text-white" />
-            </div>
-            <div>
-              <h1 className="font-black text-xl tracking-tight">PLBD87</h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Control de Entrega</p>
-            </div>
-          </div>
-          <button 
-            onClick={exportAsImage}
-            disabled={isExporting}
-            className={`flex items-center gap-2 ${isExporting ? 'bg-slate-400' : 'bg-slate-900'} text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all`}
-          >
-            {isExporting ? <RefreshCw className="animate-spin" size={18} /> : <Download size={18} />}
-            {isExporting ? 'Procesando...' : 'Bajar Imagen'}
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-2xl mx-auto px-4 pt-8">
-        {/* Date Card */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 mb-8 flex justify-between items-center text-sm font-bold text-slate-500">
-          <div className="flex items-center gap-2">
-            <Calendar size={18} /> {formattedDate}
-          </div>
-          <div className="flex items-center gap-2">
-            {formattedTime} <Clock size={18} />
-          </div>
-        </div>
-
-        {/* Listado */}
-        <div className="space-y-4 mb-10">
-          {items.map((item) => (
-            <div key={item.id} className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 transition-all">
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => toggleCheck(item.id)}>
-                  {item.checked ? (
-                    <div className="bg-emerald-500 p-1 rounded-full text-white"><CheckCircle2 size={24} /></div>
-                  ) : (
-                    <div className="text-slate-200"><Circle size={28} strokeWidth={2.5} /></div>
-                  )}
-                  <span className={`text-lg font-bold ${item.checked ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
-                    {item.label}
-                  </span>
+    <!-- UI PRINCIPAL -->
+    <div id="app-container" class="min-h-screen pb-24">
+        <header class="bg-white border-b sticky top-0 z-30 px-4 py-4 shadow-sm">
+            <div class="max-w-md mx-auto flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 p-2 rounded-xl text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4V5H2v12h3m15 0h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+                    </div>
+                    <div>
+                        <h1 class="font-black text-xl leading-none">PLBD87</h1>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Checklist Final</p>
+                    </div>
                 </div>
-                <button onClick={() => removeItem(item.id)} className="text-slate-200 hover:text-red-400 p-2 transition-colors">
-                  <Trash2 size={20} />
+                <button onclick="exportarComoImagen()" id="btn-exportar" class="bg-slate-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg flex items-center gap-2 active:scale-95 transition-all">
+                    <svg id="icon-download" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span>Imagen</span>
                 </button>
-              </div>
+            </div>
+        </header>
 
-              <div className="relative">
-                {item.photo ? (
-                  <div className="relative rounded-2xl overflow-hidden shadow-inner border border-slate-100">
-                    <img src={item.photo} alt={item.label} className="w-full h-64 object-cover" />
-                    <div className="absolute top-4 right-4 flex gap-2">
-                      <button onClick={() => removePhoto(item.id)} className="bg-red-500 text-white p-2.5 rounded-full shadow-xl"><X size={18} /></button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    <button 
-                      onClick={() => handleTriggerCamera(item.id)}
-                      className="py-10 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center gap-2 text-slate-400 bg-slate-50/30 hover:bg-blue-50 transition-all"
-                    >
-                      <Camera size={28} />
-                      <span className="text-[10px] font-black uppercase">Cámara</span>
+        <main class="max-w-md mx-auto px-4 mt-6">
+            <div class="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm text-sm font-bold text-slate-500">
+                <span id="txt-fecha">--/--/----</span>
+                <span id="txt-hora">00:00</span>
+            </div>
+
+            <div id="lista-checklist" class="space-y-4 mb-8">
+                <!-- Los items se cargan aquí -->
+            </div>
+
+            <div class="bg-blue-600 rounded-[2rem] p-6 shadow-xl shadow-blue-100 text-white">
+                <h3 class="text-[10px] font-black uppercase tracking-[0.2em] mb-4 opacity-80">Nuevo Parámetro</h3>
+                <div class="flex gap-2">
+                    <input type="text" id="input-nuevo-item" placeholder="Ej: Neumáticos..." class="flex-1 bg-white/20 border-none rounded-xl px-4 py-3 text-sm font-bold text-white placeholder:text-white/50 focus:ring-2 focus:ring-white/50 outline-none">
+                    <button onclick="agregarItem()" class="bg-white text-blue-600 p-3 rounded-xl shadow-lg active:scale-90 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
-                    <button 
-                      onClick={() => handleTriggerGallery(item.id)}
-                      className="py-10 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center gap-2 text-slate-400 bg-slate-50/30 hover:bg-emerald-50 transition-all"
-                    >
-                      <ImageIcon size={28} />
-                      <span className="text-[10px] font-black uppercase">Galería</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Añadir Nuevo */}
-        <div className="bg-white rounded-[2rem] p-6 shadow-xl border border-blue-50">
-          <h3 className="text-blue-600 font-black mb-4 text-xs uppercase tracking-widest">Añadir otro ítem</h3>
-          <div className="flex gap-3">
-            <input 
-              type="text" 
-              placeholder="Ej: Neumáticos..."
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              className="flex-1 bg-slate-50 border-none rounded-2xl px-6 py-4 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button onClick={addItem} className="bg-blue-600 text-white p-4 rounded-2xl shadow-lg active:scale-90 transition-all">
-              <Plus size={24} strokeWidth={3} />
-            </button>
-          </div>
-        </div>
-      </main>
-
-      {/* --- REPORTE PARA EXPORTACIÓN (INVISIBLE EN UI, VISIBLE PARA CANVAS) --- */}
-      <div className="fixed -left-[2000px] top-0 pointer-events-none">
-        <div ref={reportRef} className="bg-white p-10 w-[800px] font-sans text-slate-900 border-2 border-slate-100">
-          <div className="border-b-8 border-slate-900 pb-8 mb-10 flex justify-between items-end">
-            <div>
-              <p className="text-blue-600 font-black text-xl mb-2 tracking-tighter italic underline decoration-blue-200 decoration-4">REPORTE OFICIAL DE INSPECCIÓN</p>
-              <h1 className="text-4xl font-black text-slate-900 leading-none">ENTREGA DEL CAMIÓN DIARIO</h1>
-              <div className="mt-6">
-                <span className="bg-slate-900 text-white px-8 py-3 text-5xl font-mono font-black rounded-xl">PLBD87</span>
-              </div>
-            </div>
-            <div className="text-right">
-                <div className="bg-slate-100 px-4 py-2 rounded-lg inline-block mb-2">
-                    <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Generado el</p>
-                    <p className="text-xl font-black text-slate-800">{formattedDate}</p>
                 </div>
-              <p className="text-slate-500 font-bold">{formattedTime} hrs</p>
             </div>
-          </div>
-
-          <div className="space-y-4">
-            {items.map((item, index) => (
-              <div key={item.id} className="flex gap-6 items-start py-6 border-b border-slate-100 last:border-0">
-                <div className="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xl shrink-0">
-                  {index + 1}
-                </div>
-                
-                <div className="flex-1">
-                  <h3 className="text-2xl font-black text-slate-800 uppercase mb-2 leading-tight">{item.label}</h3>
-                  <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-black uppercase ${item.checked ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                    {item.checked ? '✓ Revisado Correctamente' : '✗ Pendiente de Revisión'}
-                  </div>
-                </div>
-
-                <div className="w-72 h-48 bg-slate-50 rounded-2xl overflow-hidden border-2 border-slate-200 flex items-center justify-center shrink-0 shadow-sm">
-                  {item.photo ? (
-                    <img src={item.photo} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 text-slate-300">
-                      <AlertCircle size={32} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Sin Evidencia</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-20 grid grid-cols-2 gap-20 px-10">
-            <div className="text-center">
-              <div className="h-32 border-b-2 border-slate-900 border-dashed flex items-end justify-center pb-4 text-slate-200 italic">Firma aquí</div>
-              <p className="font-black text-slate-900 uppercase text-lg mt-4">Firma Conductor</p>
-              <p className="text-slate-400 text-sm italic">RUT: _____________________</p>
-            </div>
-            <div className="text-center">
-              <div className="h-32 border-b-2 border-slate-900 border-dashed flex items-end justify-center pb-4 text-slate-200 italic">Firma aquí</div>
-              <p className="font-black text-slate-900 uppercase text-lg mt-4">Firma Supervisor</p>
-              <p className="text-slate-400 text-sm italic">RUT: _____________________</p>
-            </div>
-          </div>
-
-          <div className="mt-20 pt-10 border-t border-slate-100 text-center">
-            <p className="text-[10px] text-slate-300 font-black uppercase tracking-[0.5em]">
-              SISTEMA DE GESTIÓN DE FLOTA • PLBD87 • DOCUMENTO DIGITAL ÚNICO
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Estilo para animación de procesamiento */}
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .animate-spin { animation: spin 1s linear infinite; }
-      `}</style>
+        </main>
     </div>
-  );
-};
 
-export default App;
+    <!-- REPORTE OCULTO PARA CONVERSIÓN A IMAGEN -->
+    <div id="hidden-report">
+        <div class="p-12">
+            <div class="flex justify-between items-end border-b-8 border-slate-900 pb-8 mb-10">
+                <div>
+                    <p class="text-blue-600 font-black text-lg mb-2 tracking-widest uppercase italic">Reporte de Entrega</p>
+                    <h1 class="text-4xl font-black text-slate-900 leading-none">CHECKLIST DIARIO CAMIÓN</h1>
+                    <div class="mt-4 inline-block bg-slate-900 text-white px-6 py-2 text-4xl font-mono font-black rounded-lg">PLBD87</div>
+                </div>
+                <div class="text-right">
+                    <p class="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Emitido el</p>
+                    <p id="rep-fecha" class="text-xl font-black text-slate-800"></p>
+                    <p id="rep-hora" class="text-slate-500 font-bold"></p>
+                </div>
+            </div>
+
+            <div id="rep-items" class="space-y-4">
+                <!-- Items del reporte -->
+            </div>
+
+            <div class="mt-20 grid grid-cols-2 gap-16 px-10">
+                <div class="text-center">
+                    <div class="h-24 border-b-2 border-slate-900 border-dashed"></div>
+                    <p class="font-black text-slate-900 uppercase text-sm mt-4">Firma Conductor</p>
+                </div>
+                <div class="text-center">
+                    <div class="h-24 border-b-2 border-slate-900 border-dashed"></div>
+                    <p class="font-black text-slate-900 uppercase text-sm mt-4">Firma Supervisor</p>
+                </div>
+            </div>
+            
+            <div class="mt-16 text-center text-[10px] text-slate-300 font-black tracking-[0.5em] uppercase">
+                Sistema de Control PLBD87 • Hoja Única de Entrega
+            </div>
+        </div>
+    </div>
+
+    <!-- Inputs de archivo ocultos -->
+    <input type="file" id="input-camara" accept="image/*" capture="environment" class="hidden">
+    <input type="file" id="input-galeria" accept="image/*" class="hidden">
+
+    <script>
+        // Datos iniciales
+        let checklist = [
+            { id: 1, label: 'Luces del camión', checked: false, photo: null },
+            { id: 2, label: 'Llaves de candado', checked: false, photo: null },
+            { id: 3, label: 'Luz de carrocería', checked: false, photo: null },
+            { id: 4, label: 'Candado 1', checked: false, photo: null },
+            { id: 5, label: 'Candado 2', checked: false, photo: null }
+        ];
+
+        let itemSeleccionado = null;
+
+        // Actualizar Fecha y Hora
+        function actualizarReloj() {
+            const ahora = new Date();
+            const fecha = ahora.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const hora = ahora.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+            
+            document.getElementById('txt-fecha').innerText = fecha;
+            document.getElementById('txt-hora').innerText = hora;
+            document.getElementById('rep-fecha').innerText = fecha;
+            document.getElementById('rep-hora').innerText = hora + ' hrs';
+        }
+
+        setInterval(actualizarReloj, 1000);
+        actualizarReloj();
+
+        // Renderizar la lista en la pantalla
+        function renderizar() {
+            const contenedor = document.getElementById('lista-checklist');
+            contenedor.innerHTML = '';
+
+            checklist.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "item-card bg-white rounded-[1.5rem] p-4 shadow-sm border border-slate-100";
+                div.innerHTML = `
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="toggleCheck(${item.id})">
+                            <div class="w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${item.checked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-200'}">
+                                ${item.checked ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                            </div>
+                            <span class="font-bold text-sm ${item.checked ? 'text-slate-300 line-through' : 'text-slate-700'}">${item.label}</span>
+                        </div>
+                        <button onclick="borrarItem(${item.id})" class="text-slate-200 hover:text-red-500 p-2">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                    </div>
+                    <div>
+                        ${item.photo ? `
+                            <div class="relative rounded-2xl overflow-hidden shadow-inner border border-slate-100">
+                                <img src="${item.photo}" class="w-full h-48 object-cover">
+                                <button onclick="quitarFoto(${item.id})" class="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full shadow-lg">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                            </div>
+                        ` : `
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="abrirCamara(${item.id})" class="flex flex-col items-center justify-center gap-1 py-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 text-slate-400 active:bg-blue-50 active:text-blue-500 transition-colors">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                    <span class="text-[9px] font-black uppercase">Cámara</span>
+                                </button>
+                                <button onclick="abrirGaleria(${item.id})" class="flex flex-col items-center justify-center gap-1 py-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 text-slate-400 active:bg-emerald-50 active:text-emerald-500 transition-colors">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                    <span class="text-[9px] font-black uppercase">Galería</span>
+                                </button>
+                            </div>
+                        `}
+                    </div>
+                `;
+                contenedor.appendChild(div);
+            });
+        }
+
+        // Acciones de Items
+        window.toggleCheck = (id) => {
+            const item = checklist.find(i => i.id === id);
+            item.checked = !item.checked;
+            renderizar();
+        };
+
+        window.quitarFoto = (id) => {
+            const item = checklist.find(i => i.id === id);
+            item.photo = null;
+            renderizar();
+        };
+
+        window.borrarItem = (id) => {
+            checklist = checklist.filter(i => i.id !== id);
+            renderizar();
+        };
+
+        window.agregarItem = () => {
+            const input = document.getElementById('input-nuevo-item');
+            const texto = input.value.trim();
+            if (texto) {
+                checklist.push({ id: Date.now(), label: texto, checked: false, photo: null });
+                input.value = '';
+                renderizar();
+            }
+        };
+
+        // Manejo de Fotos
+        function abrirCamara(id) {
+            itemSeleccionado = id;
+            document.getElementById('input-camara').click();
+        }
+
+        function abrirGaleria(id) {
+            itemSeleccionado = id;
+            document.getElementById('input-galeria').click();
+        }
+
+        function procesarFoto(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const item = checklist.find(i => i.id === itemSeleccionado);
+                    item.photo = event.target.result;
+                    item.checked = true;
+                    renderizar();
+                };
+                reader.readAsDataURL(file);
+            }
+            e.target.value = '';
+        }
+
+        document.getElementById('input-camara').addEventListener('change', procesarFoto);
+        document.getElementById('input-galeria').addEventListener('change', procesarFoto);
+
+        // EXPORTACIÓN A IMAGEN
+        async function exportarComoImagen() {
+            const btn = document.getElementById('btn-exportar');
+            btn.disabled = true;
+            btn.innerText = 'Procesando...';
+
+            // Llenar el reporte oculto
+            const repContenedor = document.getElementById('rep-items');
+            repContenedor.innerHTML = '';
+
+            checklist.forEach((item, index) => {
+                const fila = document.createElement('div');
+                fila.className = "flex gap-6 items-start py-6 border-b border-slate-100";
+                fila.innerHTML = `
+                    <div class="w-10 h-10 bg-slate-900 text-white flex items-center justify-center font-black rounded-lg shrink-0">${index + 1}</div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold uppercase text-slate-800">${item.label}</h3>
+                        <p class="text-xs font-black uppercase ${item.checked ? 'text-emerald-600' : 'text-red-500'}">
+                            ${item.checked ? 'Revisado ✓' : 'Pendiente ✗'}
+                        </p>
+                    </div>
+                    <div class="w-64 h-40 bg-slate-50 border border-slate-200 rounded-xl overflow-hidden flex items-center justify-center">
+                        ${item.photo ? `<img src="${item.photo}" class="w-full h-full object-cover">` : '<span class="text-[10px] text-slate-300 font-bold uppercase">Sin Foto</span>'}
+                    </div>
+                `;
+                repContenedor.appendChild(fila);
+            });
+
+            // Convertir a Canvas y descargar
+            try {
+                const canvas = await html2canvas(document.getElementById('hidden-report'), {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: "#ffffff"
+                });
+                
+                const link = document.createElement('a');
+                link.download = `PLBD87_Reporte_${document.getElementById('txt-fecha').innerText.replace(/\//g, '-')}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            } catch (err) {
+                console.error(err);
+                alert("Error al generar la imagen. Intenta nuevamente.");
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Imagen</span>
+            `;
+        }
+
+        // Inicio
+        renderizar();
+    </script>
+</body>
+</html>
 
