@@ -96,7 +96,7 @@
         </main>
     </div>
 
-    <!-- REPORTE DE EXPORTACIÓN (ESTILO HOJA WORD OPTIMIZADA) -->
+    <!-- REPORTE DE EXPORTACIÓN (ESTILO HOJA WORD OPTIMIZADA SIN FIRMAS) -->
     <div id="hidden-report">
         <div class="p-12 bg-white">
             <!-- Header Reporte -->
@@ -125,18 +125,7 @@
                 </div>
             </div>
 
-            <!-- Firmas -->
-            <div class="mt-16 grid grid-cols-2 gap-20 px-10">
-                <div class="text-center">
-                    <div class="h-20 border-b border-slate-300"></div>
-                    <p class="font-black text-slate-900 uppercase text-[10px] mt-4">Firma Responsable Entrega</p>
-                </div>
-                <div class="text-center">
-                    <div class="h-20 border-b border-slate-300"></div>
-                    <p class="font-black text-slate-900 uppercase text-[10px] mt-4">Firma Responsable Recepción</p>
-                </div>
-            </div>
-
+            <!-- Footer del Reporte -->
             <div class="mt-12 pt-8 border-t border-slate-100 flex justify-between items-center text-[8px] text-slate-300 font-black uppercase tracking-[0.4em]">
                 <span>PLBD87 CONTROL DE FLOTA</span>
                 <span>Generado digitalmente</span>
@@ -160,9 +149,9 @@
         let targetId = null;
 
         function updateTime() {
-            const now = new Date();
-            const d = now.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const h = now.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+            const ahora = new Date();
+            const d = ahora.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const h = ahora.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
             document.getElementById('txt-fecha').innerText = d;
             document.getElementById('txt-hora').innerText = h;
             document.getElementById('rep-fecha').innerText = d;
@@ -227,14 +216,14 @@
         function handleFile(e) {
             const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
+                const lector = new FileReader();
+                lector.onload = (evento) => {
                     const item = db.find(x => x.id === targetId);
-                    item.photo = ev.target.result;
+                    item.photo = evento.target.result;
                     item.checked = true;
                     renderApp();
                 };
-                reader.readAsDataURL(file);
+                lector.readAsDataURL(file);
             }
             e.target.value = '';
         }
@@ -247,10 +236,10 @@
             btn.disabled = true;
             btn.innerText = 'PROCESANDO...';
 
-            const container = document.getElementById('rep-items-container');
-            container.innerHTML = '';
+            const contenedor = document.getElementById('rep-items-container');
+            contenedor.innerHTML = '';
 
-            // FILTRADO: Solo ítems que TIENEN FOTO
+            // Filtrar solo ítems con foto
             const itemsConFoto = db.filter(item => item.photo !== null);
 
             if (itemsConFoto.length === 0) {
@@ -260,12 +249,12 @@
                 return;
             }
 
-            itemsConFoto.forEach((item, index) => {
-                const row = document.createElement('div');
-                row.className = "report-grid";
-                row.innerHTML = `
+            itemsConFoto.forEach((item, indice) => {
+                const fila = document.createElement('div');
+                fila.className = "report-grid";
+                fila.innerHTML = `
                     <div class="flex items-center gap-4">
-                        <div class="w-6 h-6 bg-slate-100 flex items-center justify-center font-black text-slate-400 text-[10px] rounded">${index + 1}</div>
+                        <div class="w-6 h-6 bg-slate-100 flex items-center justify-center font-black text-slate-400 text-[10px] rounded">${indice + 1}</div>
                         <div class="flex flex-col">
                             <span class="text-sm font-black text-slate-800 uppercase tracking-tighter">${item.label}</span>
                             <span class="text-[9px] font-bold text-emerald-500 uppercase">Verificado ✓</span>
@@ -275,7 +264,7 @@
                         <img src="${item.photo}" class="w-full h-20 object-cover">
                     </div>
                 `;
-                container.appendChild(row);
+                contenedor.appendChild(fila);
             });
 
             try {
@@ -289,7 +278,7 @@
                 link.href = canvas.toDataURL("image/png");
                 link.click();
             } catch (err) {
-                console.error(err);
+                console.error("Error al exportar:", err);
             }
 
             btn.disabled = false;
